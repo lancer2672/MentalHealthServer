@@ -1,29 +1,23 @@
 from flask import Flask, request, jsonify
 import numpy as np
-from linear_model import regression, mean_squared_error, r2_score
 import pandas as pd
+import tensorflow as tf
 
+model = tf.keras.models.load_model('my_model.h5')
 app = Flask(__name__)
+
+Smoke_mapping = {'Yes': 1, 'No': 0, 'Oc': 0.5}
+Consume_TnC_mapping = {'Yes': 1, 'No': 0, 'Oc': 0.5, 'NA': np.nan}
+Snoring_mapping = {'Yes': 1, 'No': 0}
+sleep_hrs_mapping = {'4-6hours': 5,
+                     '6-7hours': 6.5, '7-8hours': 7.5, '8-10hours': 9}
+studyhrs_mapping = {1.5: 0, 4: 0.33, 6: 0.67, 8.5: 1}
+Sleep_prob_mapping = {'Yes': 1, 'No': 0}
 
 
 @app.route('/', methods=['GET'])
 def home():
     return "HELLO WORLD"
-
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.json
-
-
-Meal_mapping = {1: 0, 2: 0.33, 3: 0.67, 4: 1}
-Smoke_mapping = {'Yes': 1, 'No': 0, 'Oc': 0.5}
-Consume_TnC_mapping = {'Yes': 1, 'No': 0, 'Oc': 0.5, 'NA': np.nan}
-Snoring_mapping = {'Yes': 1, 'No': 0}
-sleep_hrs_mapping = {'4-6hours': 1,
-                     '6-7hours': 0, '7-8hours': 0, '8-10hours': 1}
-studyhrs_mapping = {1.5: 0, 4: 0.33, 6: 0.67, 8.5: 1}
-Sleep_prob_mapping = {'Yes': 1, 'No': 0}
 
 
 @app.route('/get-predicted-values', methods=['GET'])
@@ -44,19 +38,17 @@ def get_predicted_values():
     Sleep_prob_Anxiety = (params.get('Sleep_prob_Anxiety', "No"))
     Sleep_prob_Stress = (params.get('Sleep_prob_Stress', "No"))
     Sleep_prob_Migraine = (params.get('Sleep_prob_Migraine', "No"))
-    print("SLEEP HOURS", sleep_hrs)
+    print("sleep_hrs", sleep_hrs)
     # Encode giá trị
-    Meal = Meal_mapping.get(Meal, 0)
     Smoke = Smoke_mapping.get(Smoke, 0)
     Consume_TnC = Consume_TnC_mapping.get(Consume_TnC, 0)
     Snoring = Snoring_mapping.get(Snoring, 0)
     encoded_sleep_hours = sleep_hrs_mapping.get(sleep_hrs, np.nan)
-    studyhrs = studyhrs_mapping.get(studyhrs, np.nan)
-    print("SLEEP HOURS encoded_sleep_hours", encoded_sleep_hours)
     Exercise = Smoke_mapping.get(Exercise, 0)
     Sleep_prob_Anxiety = Sleep_prob_mapping.get(Sleep_prob_Anxiety, 0)
     Sleep_prob_Stress = Sleep_prob_mapping.get(Sleep_prob_Stress, 0)
     Sleep_prob_Migraine = Sleep_prob_mapping.get(Sleep_prob_Migraine, 0)
+    print("encoded_sleep_hours", encoded_sleep_hours)
 
     data = [
         {'BMI': BMI, 'Age': Age, 'Meal': Meal, 'Smoke': Smoke, 'Consume_TnC': Consume_TnC, 'Snoring': Snoring, 'sleep_hrs': encoded_sleep_hours, 'studyhrs': studyhrs,
@@ -65,19 +57,14 @@ def get_predicted_values():
     input_data1 = pd.DataFrame(data, columns=['BMI', 'Age', 'Meal', 'Smoke', 'Consume_TnC', 'Snoring', 'sleep_hrs', 'studyhrs',
                                               'Exercise', 'Sleep_prob_Anxiety', 'Sleep_prob_Stress',
                                               'Sleep_prob_Migraine'])
-    # input_data = [{BMI, Age, Meal, Smoke, Consume_TnC, Snoring, sleep_hrs, studyhrs,
-    #                Exercise, Sleep_prob_Anxiety, Sleep_prob_Stress, Sleep_prob_Migraine}]
-    # input_data1 = pd.DataFrame(input_data, columns=['BMI', 'Age', 'Meal', 'Smoke', 'Consume_TnC', 'Snoring', 'sleep_hrs', 'studyhrs', 'Exercise', 'Sleep_prob_Anxiety', 'Sleep_prob_Stress', 'Sleep_prob_Migraine'])
-
-    print("INPUT DATA", input_data1)
-    print("INPUT DATA", input_data1.columns)
-    print("INPUT DATA", input_data1.values)
     # Thực hiện dự đoán cho dữ liệu params
-    y_pred = regression.predict(input_data1)
+    y_pred = y_pred = model.predict(input_data1)
     print("y_pred", y_pred)
-
     return jsonify({'prediction': y_pred.tolist()})
 
 
-if __name__ == '__main__':
-    app.run()
+def create_app():
+    return app
+# if __name__ == '__main__':
+#     from waitress import serve
+#     serve(app, host="0.0.0.0", port=8080)
